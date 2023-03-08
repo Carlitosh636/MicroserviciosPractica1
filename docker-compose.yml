@@ -1,0 +1,49 @@
+version: "3.7"
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: "rabbitmq"
+    hostname: my-rabbit
+    ports:
+      - 5672:5672
+      - 15672:15672
+    restart: always
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 30s
+      retries: 3
+
+  service:
+    image: external-service:1.0
+    container_name: "service"
+    build:
+      context: ./service
+    ports:
+      - 8888:8888
+
+  worker:
+    image: worker:1.0
+    container_name: "worker"
+    build:
+      context: ./worker
+    ports:
+      - 8090:8090
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - SPRING_RABBITMQ_HOST=rabbitmq 
+
+  server:
+    image: server:1.0
+    container_name: "server"
+    build:
+      context: ./server
+    ports:
+      - 8080:8080
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - SPRING_RABBITMQ_HOST=rabbitmq 
